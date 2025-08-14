@@ -1,68 +1,37 @@
-name: CI
+name: Frontend CI
  
 on:
   push:
-    branches: [ develop, main ]
+    branches:
+      - develop
+      - main
   pull_request:
-    branches: [ develop, main ]
+    branches:
+      - develop
+      - main
  
 jobs:
-  test:
+  frontend-test:
     runs-on: ubuntu-latest
  
-    services:
-      mariadb:
-        image: mariadb:10.5
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: test_db
-        ports:
-          - 3306:3306
- 
-      redis:
-        image: redis:6
-        ports:
-          - 6379:6379
- 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
- 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
- 
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest
- 
-      - name: Run backend tests
-        run: pytest --maxfail=1 --disable-warnings -q
  
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm' # Speeds up installs by caching node_modules
  
-      - name: Install frontend dependencies
+      - name: Install dependencies
         working-directory: frontend
-        run: |
-          npm install
+        run: npm ci
  
-      - name: Run frontend tests
+      - name: Run tests
         working-directory: frontend
-        run: |
-          npm test
+        run: npm test
  
-      - name: Lint Python code
-        run: |
-          pip install flake8
-          flake8 .
- 
-      - name: Lint JavaScript
+      - name: Lint code
         working-directory: frontend
-        run: |
-          npm install eslint
-          npx eslint .
+        run: npm run lint || npx eslint
