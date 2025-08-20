@@ -1,0 +1,147 @@
+name: CI — Lint, Test & Build
+ 
+on:
+
+  push:
+
+    branches: [ develop, main ]
+
+  pull_request:
+
+    branches: [ develop, main ]
+ 
+jobs:
+
+  setup:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source
+
+        uses: actions/checkout@v4
+ 
+      # Python environment
+
+      - name: Set up Python
+
+        uses: actions/setup-python@v4
+
+        with:
+
+          python-version: '3.11'
+
+      - name: Install Python deps
+
+        run: |
+
+          pip install --upgrade pip
+
+          pip install -r requirements.txt || pip install frappe
+ 
+      # Node environment for frontend
+
+      - name: Set up Node.js
+
+        uses: actions/setup-node@v3
+
+        with:
+
+          node-version: '18'
+
+      - name: Install JS deps
+
+        working-directory: ./frontend
+
+        run: npm ci
+ 
+  lint:
+
+    needs: setup
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+ 
+      - name: Lint Python
+
+        run: flake8 .
+ 
+      - name: Format check (Black)
+
+        run: black --check .
+ 
+      - name: Lint JavaScript (ESLint)
+
+        working-directory: ./frontend
+
+        run: npm run lint
+ 
+  test:
+
+    needs: setup
+
+    runs-on: ubuntu-latest
+
+    services:
+
+      redis:
+
+        image: redis:7
+
+      mariadb:
+
+        image: mariadb:10.11
+
+        env:
+
+          MYSQL_ROOT_PASSWORD: root
+
+          MYSQL_DATABASE: frappe
+
+      node:
+
+        image: node:18
+
+    steps:
+
+      - uses: actions/checkout@v4
+ 
+      - name: Run Python tests
+
+        run: pytest --maxfail=1 --disable-warnings -q
+ 
+      - name: Run JS tests
+
+        working-directory: ./frontend
+
+        run: npm test
+ 
+  docker-build:
+
+    needs: lint
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+ 
+      - name: Build Docker Compose
+
+        working-directory: ./docker
+
+        run: docker-compose build
+ 
+      - name: Docker Lint (optional)
+
+        run: |
+
+          echo "Linting Dockerfiles..."
+
+          # Add hadolint check if installed
+
+ 
